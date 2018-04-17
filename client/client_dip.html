@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hello World</title>
+</head>
+  <script src="pixi.min.js"></script>
+<body>
+  <script type="text/javascript">
+
+  var app = new PIXI.Application(800, 600, {backgroundColor : 0x1099bb});
+  document.body.appendChild(app.view);
+
+  // create a new Sprite from an image path
+  var bunny = PIXI.Sprite.fromImage('cat.png')
+
+  // center the sprite's anchor point
+  bunny.anchor.set(0.5);
+
+  app.stage.addChild(bunny);
+
+  // Listen for animate update
+  app.ticker.add(function(delta) {
+      // just for fun, let's rotate mr rabbit a little
+      // delta is 1 if running at 100% performance
+      // creates frame-independent transformation
+      bunny.rotation += 0.1 * delta;
+      readTextFile("players.txt", function(text){
+          var parts = text.split("\n");
+          var num_players = parseInt(parts[0]);
+          var i;
+          for (i = 0; i <= num_players*4; i++) {
+              if(i%4==2){
+                bunny.x = parts[i];
+              }
+              if(i%4==3){
+                bunny.y = parts[i];
+              }
+          }
+
+      });
+  });
+
+  function readTextFile(file, callback) {
+      var rawFile = new XMLHttpRequest();
+      rawFile.overrideMimeType("text/plain");
+      rawFile.open("GET", file, true);
+      rawFile.onreadystatechange = function() {
+          if (rawFile.readyState === 4 && rawFile.status == "200") {
+              callback(rawFile.responseText);
+          }
+      }
+      rawFile.send(null);
+  }
+
+
+
+  </script>
+</body>
+</html>
