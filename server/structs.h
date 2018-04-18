@@ -1,9 +1,9 @@
 #define MAX_PLAYER_NUM 5
 
 struct hns_player_coordinates {
-  uint32_t x;
-  uint32_t y;
-  uint32_t f; /* currently facing which direction, measured in degrees */
+  float x;
+  float y;
+  float f; /* currently facing which direction, measured in degrees */
 }__attribute__ ((packed)) ;
 typedef struct hns_player_coordinates hns_player_coordinates_t;
 
@@ -20,6 +20,7 @@ struct hns_player_status {
   uint32_t speed;
 }__attribute__ ((packed)) ;
 typedef struct hns_player_status hns_player_status_t;
+
 
 
 struct hns_update_header {

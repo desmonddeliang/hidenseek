@@ -1,7 +1,24 @@
 /*
 ** Hide & Seek Game Server
+*  CLient to server protocol
+* -------------------------------------------------------------
+* 4 Bytes | 4 Bytes | 4 Bytes | 4 Bytes
+* -------------------------------------------------------------
+* ID      | X       | Y       | facing
+* -------------------------------------------------------------
+*
+*
+* Server to client ai_protocol
+* -------------------------------------------------------------
+* 4 Bytes | 4 Bytes   | 4 Bytes   | 16 * n Bytes
+* -------------------------------------------------------------
+* Type    | Timestamp | n Entries | ID | X | Y | F | ID | X ...
+* -------------------------------------------------------------
 */
 
+
+
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +31,7 @@
 #include "structs.h"
 
 #define PORT "54321"   // port we're listening on
-#define TICK_RATE 100
+#define TICK_RATE 100000
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -28,11 +45,6 @@ void *get_in_addr(struct sockaddr *sa)
 
 void hns_update_status(hns_game_t *game, const void *buf){
   hns_player_t *new_input = (hns_player_t *)buf;
-  printf("PLAYER %i \n", new_input->conn.id);
-  printf("   X %i\n", new_input->coor.x);
-  printf("   Y %i\n", new_input->coor.y);
-  printf("   F %i\n", new_input->coor.f);
-
   hns_player_t *player_walker = game->players;
 
   if(player_walker==NULL){
@@ -75,8 +87,6 @@ void hns_update_status(hns_game_t *game, const void *buf){
     }
   }
 
-
-  printf("Now we have %i players!\n", game->num_players);
 }
 
 
@@ -86,7 +96,7 @@ void hns_send_status(hns_game_t *game, uint8_t *send_buf){
 
   update_hdr->type = 1;
   update_hdr->timestamp = game->timestamp;
-  printf("yo, num play: %i\n",game->num_players);
+
   update_hdr->entry_count = game->num_players;
 
   memcpy(send_buf,update_hdr,sizeof(hns_update_header_t));
@@ -96,13 +106,11 @@ void hns_send_status(hns_game_t *game, uint8_t *send_buf){
   int i,j;
 
   for(i=0;i<game->num_players;i++){
-    memcpy(send_buf + sizeof(hns_update_header_t) + i*sizeof(hns_player_t),
-            player_walker, sizeof(hns_player_t));
+    memcpy(send_buf + sizeof(hns_update_header_t) + i*(sizeof(hns_player_t)-8),
+            player_walker, sizeof(hns_player_t)-8);
     player_walker = player_walker->next;
-    printf("preping stuff %i\n",i);
   }
 
-  printf("over and out\n");
   free(update_hdr);
 }
 
@@ -187,14 +195,19 @@ int main(void)
 
   uint8_t * send_buf = NULL;
   int send_len = 0;
+  struct timeval * timeout = malloc(sizeof(struct timeval));
+  timeout->tv_sec = 0;
+
 
   // main loop
   while(1) {
+    game->timestamp = time(0);
     read_fds = master; // copy it
-    if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
+    timeout->tv_usec = TICK_RATE;
+    if (select(fdmax+1, &read_fds, NULL, NULL, timeout) == -1) {
       perror("select");
       exit(4);
-    }
+    } else {
 
     // run through the existing connections looking for data to read
     for(i = 0; i <= fdmax; i++) {
@@ -227,35 +240,43 @@ int main(void)
             if (nbytes == 0) {
               // connection closed
               printf("Hide & Seek Game Server: socket %d hung up\n", i);
+              return 0;
             } else {
               perror("recv");
+              return 0;
             }
             close(i); // bye!
             FD_CLR(i, &master); // remove from master set
           } else {
             hns_update_status(game, buf);
-            // we got some data from a client
-            send_len = sizeof(hns_update_header_t) +
-                                game->num_players * sizeof(hns_player_t);
-            send_buf = malloc(send_len);
-            hns_send_status(game, send_buf);
-            for(j = 0; j <= fdmax; j++) {
-                // send to everyone!
-                if (FD_ISSET(j, &master)) {
-                    // except the listener
-                    if (j != listener) {
-                        printf("YEAH!!\n");
-                        if (send(j, send_buf, send_len, 0) == -1) {
-                            perror("send");
-                        }
-                    }
-                }
-            }
-            free(send_buf);
           }
         } // END handle data from client
       } // END got new incoming connection
     } // END looping through file descriptors
+
+    /* Broadcast player info */
+    if(game->num_players>0){
+      //printf("Broadcasting: %d\n", game->timestamp);
+      // Player Status Broadcasting for every 100 miliseconds
+      send_len = sizeof(hns_update_header_t) +
+                          game->num_players * (sizeof(hns_player_t)-8);
+      send_buf = malloc(send_len);
+      hns_send_status(game, send_buf);
+
+      for(j = 0; j <= fdmax; j++) {
+          // send to everyone!
+          if (FD_ISSET(j, &master)) {
+              // except the listener
+              if (j != listener) {
+                  if (send(j, send_buf, send_len, 0) == -1) {
+                      perror("send");
+                  }
+              }
+          }
+      }
+      free(send_buf);
+    }
+  }
   } // END while
 
 
