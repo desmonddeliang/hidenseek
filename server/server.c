@@ -31,7 +31,7 @@
 #include "structs.h"
 
 #define PORT "54321"   // port we're listening on
-#define TICK_RATE 100000
+#define TICK_RATE 40000 // in microseconds
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)

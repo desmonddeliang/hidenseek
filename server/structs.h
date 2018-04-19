@@ -17,7 +17,7 @@ typedef struct hns_player_connection hns_player_connection_t;
 struct hns_player_status {
   uint32_t role; /* 0 for survivor, 1 for killer */
   uint32_t hp; /* health poitns, 100 max */
-  uint32_t speed;
+  uint32_t action;
 }__attribute__ ((packed)) ;
 typedef struct hns_player_status hns_player_status_t;
 
@@ -34,6 +34,7 @@ typedef struct hns_update_header hns_update_header_t;
 struct hns_player {
   struct hns_player_connection conn;
   struct hns_player_coordinates coor;
+  struct hns_player_status stat;
   struct hns_player *next;
 }__attribute__ ((packed)) ;
 typedef struct hns_player hns_player_t;
