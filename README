@@ -1,0 +1,37 @@
+types (8 bits):
+0: client -> server init (tcp)
+1: server -> client init ack (tcp)
+2: server to client: game start signal (tcp)
+3: client -> server: self-info (udp)
+4: server -> client: broadcast (udp)
+5: server -> client: game over (tcp)
+   client -> server: disconnect(tcp)
+
+timeline:
+0. clients connect (tcp)
+1. 2 clients connected (tcp)
+2. wait for TIMEOUT seconds, until no new client connects (tcp)
+3. enter game phase (convert to udp)
+4. server broadcast all players information to every player connected N times
+   per second (udp)
+
+packet:
+0:
+  (0) type
+  (1) id (32 bits)
+  (2) role (8 bits)
+
+1:
+  (0) type
+  (1) ack_code
+
+2:
+  (0) type
+  (1) num_player
+  (2) player list
+
+3:
+  (0) type
+  (1) id  (64 bits)
+  (2) cor (96 bits)
+  (3) act (8 bits)
