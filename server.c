@@ -98,7 +98,7 @@ int main(void)
 
   /* get the player amount */
   int nump = 2;
-  printf("Please enter the amount of players in this game: (2-5) then Ctrl+D \n");
+  printf("Please enter the amount of players in this game: (2-5) \n");
   scanf("%d", &nump);
   if(nump>5) nump=5;
   if(nump<2) nump=2;
@@ -496,7 +496,7 @@ void hns_obj(hns_game_t* game, hns_player_t* player){
     if(player->status%2==0){
       if(hns_distance(&(game->obj1), player)<0.5 || hns_distance(&(game->obj2), player)<0.5 ){
         /* Add points */
-        game->points++;
+        game->points = game->points + 2;
       }
     }
   } else {
@@ -512,7 +512,7 @@ void hns_obj(hns_game_t* game, hns_player_t* player){
 
 void hns_judge(hns_game_t* game){
   /* game won? */
-  if(game->points >= (game->num_players-1) * 2000){
+  if(game->points >= (game->num_players-1) * 3000){
     game->game_status = 3; /* Survivor won */
     game->game_over = 1;
   }
