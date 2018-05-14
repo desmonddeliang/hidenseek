@@ -56,16 +56,16 @@
 #include <math.h>
 #include "structs.h"
 
-/* Ports */
+/* Constants */
 #define TCP_PORT "54321"
 #define UDP_PORT "54329"
+#define UPDATE_RATE 100000 /* in microseconds */
 
 /* Prototypes */
 void game_init(hns_game_t*);
 void* get_in_addr(struct sockaddr*);
 void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ );
-void gaming(hns_game_t* game);
-
+void hns_gaming(hns_game_t* game);
 void hns_obj(hns_game_t* game, hns_player_t* player);
 void hns_judge(hns_game_t* game);
 double hns_distance(hns_player_t* p1, hns_player_t* p2);
@@ -74,7 +74,7 @@ double hns_distance(hns_player_t* p1, hns_player_t* p2);
 /*************************************************************
 * Main function
 * Starts TCP sockets to wait for n players to join the game
-* Once everybody joined, call gaming() to start the game
+* Once everybody joined, call hns_gaming() to start the game
 *************************************************************/
 int main(void)
 {
@@ -218,9 +218,9 @@ int main(void)
   } // END main while loop
 
 
-  printf("Everybody joined, enters gaming stage now!\n");
+  printf("Everybody joined, enters hns_gaming stage now!\n");
 
-  /* Enters Gaming stage by broadcasting a game start signal */
+  /* Enters hns_gaming stage by broadcasting a game start signal */
   game_start_t* gamestart = malloc(sizeof(game_start_t));
   gamestart->type = 2;
   gamestart->num_players = game->num_players;
@@ -235,7 +235,7 @@ int main(void)
   free(gamestart);
 
   /* start broadcasting every player's information to everybody */
-  gaming(game);
+  hns_gaming(game);
 
   /* Game over, close all TCP sockets */
   for(i = 0; i <= fdmax; i++){
@@ -381,12 +381,12 @@ void *get_in_addr(struct sockaddr *sa)
 
 
 /*************************************************************
-* gaming function
+* hns_gaming function
 * Pass in a *game* object, and we'll start the game!
 * First we start a UDP listening socket, and wait for Everybody
 * to start updating their information
 *************************************************************/
-void gaming(hns_game_t* game)
+void hns_gaming(hns_game_t* game)
 {
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
@@ -400,6 +400,8 @@ void gaming(hns_game_t* game)
 
   memset(&hints, 0, sizeof hints);
 
+
+  /* setting up UDP sockets */
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
@@ -442,6 +444,7 @@ void gaming(hns_game_t* game)
 
   gettimeofday(&last_sent, NULL);
 
+  /* main loop */
   while(1)
   {
 
@@ -496,7 +499,7 @@ void gaming(hns_game_t* game)
 
     gettimeofday(&current_time, NULL);
 
-    if(current_time.tv_sec * 1000000 + current_time.tv_usec - (last_sent.tv_sec * 1000000 + last_sent.tv_usec) > 100000)
+    if(current_time.tv_sec * 1000000 + current_time.tv_usec - (last_sent.tv_sec * 1000000 + last_sent.tv_usec) > UPDATE_RATE)
     {
       /* Shut down server after a few closedown_counter notifications */
       hns_broadcast_hdr_t* bro = malloc(sizeof(hns_broadcast_hdr_t));
@@ -516,6 +519,7 @@ void gaming(hns_game_t* game)
 
       int player_index = 0;
 
+      /* broadcast all player's information to all clients */
       while(player_walker!=NULL){
         player_temp->role = player_walker->role;
         player_temp->x = player_walker->x;
@@ -537,6 +541,7 @@ void gaming(hns_game_t* game)
       free(send_buf);
       gettimeofday(&last_sent, NULL);
 
+      /* If game is over then break out */
       if(game->game_over){
         break;
       }
@@ -545,6 +550,11 @@ void gaming(hns_game_t* game)
   close(sockfd);
 }
 
+
+/*************************************************************
+* hns_obj function
+* determines if a given player is in the objective circles!
+*************************************************************/
 void hns_obj(hns_game_t* game, hns_player_t* player){
   /* assume the first player is killer */
   if(player->role!=0){
@@ -564,7 +574,11 @@ void hns_obj(hns_game_t* game, hns_player_t* player){
   }
 }
 
-
+/*************************************************************
+* hns_judge function
+* determines if the lion catches any other players
+* Also determins if a player is rescued
+*************************************************************/
 void hns_judge(hns_game_t* game){
   /* game won? */
   if(game->points >= (game->num_players-1) * 3000){
@@ -612,8 +626,10 @@ void hns_judge(hns_game_t* game){
 }
 
 
-
-
+/*************************************************************
+* hns_distance function
+* returns the distance from any two players (or objects)
+*************************************************************/
 double hns_distance(hns_player_t* p1, hns_player_t* p2){
   return sqrt((double)((p1->x-p2->x)*(p1->x-p2->x)+(p1->y-p2->y)*(p1->y-p2->y)));
 }
