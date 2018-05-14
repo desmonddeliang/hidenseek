@@ -1,8 +1,5 @@
 #define MAX_PLAYER_NUM 5
 
-
-
-
 struct hns_player
 {
   uint32_t id;
@@ -21,8 +18,10 @@ struct hns_game {
   uint32_t survivor;
   uint32_t points;
   uint32_t game_status;
+  uint32_t num_freezed_players;
   hns_player_t obj1;
   hns_player_t obj2;
+  uint32_t game_over;
   struct hns_player *players;
 }__attribute__ ((packed)) ;
 typedef struct hns_game hns_game_t;

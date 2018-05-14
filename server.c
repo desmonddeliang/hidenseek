@@ -15,7 +15,8 @@
 #include <math.h>
 #include "structs.h"
 
-#define PORT "54321"
+#define TCP_PORT "54321"
+#define UDP_PORT "54329"
 
 void game_init(hns_game_t*);
 void* get_in_addr(struct sockaddr*);
@@ -60,7 +61,7 @@ int main(void)
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
-  if((rv = getaddrinfo(NULL, PORT, &hints, &ai)) != 0){
+  if((rv = getaddrinfo(NULL, TCP_PORT, &hints, &ai)) != 0){
     fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
     exit(1);
   }
@@ -178,6 +179,12 @@ int main(void)
   /* start broadcasting every player's information to everybody */
   gaming(game);
 
+  /* close all TCP sockets */
+  for(i = 0; i <= fdmax; i++){
+    close(i);
+  }
+
+  /* bye */
   return 0;
 }
 
@@ -287,11 +294,13 @@ void game_init(hns_game_t* game)
   game->killer = 0;
   game->survivor = 0;
   game->game_status = 0;
+  game->num_freezed_players = 0;
   game->points = 0;
   game->obj1.x = -3;
   game->obj2.x = 3;
   game->obj1.y = 0;
   game->obj2.y = 0;
+  game->game_over = 0;
 }
 
 //==============================================================================
@@ -316,6 +325,7 @@ void gaming(hns_game_t* game)
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
   int rv;
+  int closedown_counter = 0;
   int numbytes;
   struct sockaddr_storage their_addr;
   char buf[1024];
@@ -328,7 +338,7 @@ void gaming(hns_game_t* game)
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
-  getaddrinfo(NULL, "54322", &hints, &servinfo);
+  getaddrinfo(NULL, UDP_PORT, &hints, &servinfo);
 
   for(p = servinfo; p != NULL; p = p->ai_next)
   {
@@ -367,6 +377,7 @@ void gaming(hns_game_t* game)
   gettimeofday(&last_sent, NULL);
   while(1)
   {
+
     memset(buf, 0, strlen(buf));
     FD_ZERO(&read_fds);
     FD_SET(sockfd, &read_fds);
@@ -406,19 +417,19 @@ void gaming(hns_game_t* game)
             player_walker->x = update->x;
             player_walker->y = update->y;
             hns_obj(game,player_walker);
-            //player_walker->status = update->status;
           } // end same id
           player_walker = player_walker->next;
         } // end find id
       } // end if update
     }
 
+    hns_judge(game);
+
     gettimeofday(&current_time, NULL);
+
     if(current_time.tv_sec * 1000000 + current_time.tv_usec - (last_sent.tv_sec * 1000000 + last_sent.tv_usec) > 100000)
     {
-
-      hns_judge(game);
-
+      /* Shut down server after a few closedown_counter notifications */
       hns_broadcast_hdr_t* bro = malloc(sizeof(hns_broadcast_hdr_t));
       bro->type = 4;
       bro->num_players = game->num_players;
@@ -456,21 +467,24 @@ void gaming(hns_game_t* game)
       } // END for add
       free(bro);
       free(send_buf);
-
-
-
       gettimeofday(&last_sent, NULL);
+
+      if(game->game_over){
+        break;
+      }
     }
   }
-
+  close(sockfd);
 }
 
 void hns_obj(hns_game_t* game, hns_player_t* player){
   /* assume the first player is killer */
   if(player->role!=0){
-    if(hns_distance(&(game->obj1), player)<0.5 || hns_distance(&(game->obj2), player)<0.5){
-      /* Add points */
-      game->points++;
+    if(player->status%2==0){
+      if(hns_distance(&(game->obj1), player)<0.5 || hns_distance(&(game->obj2), player)<0.5 ){
+        /* Add points */
+        game->points++;
+      }
     }
   } else {
     if(hns_distance(&(game->obj1), player)<0.5 || hns_distance(&(game->obj2), player)<0.5){
@@ -484,17 +498,27 @@ void hns_obj(hns_game_t* game, hns_player_t* player){
 
 
 void hns_judge(hns_game_t* game){
+  /* game won? */
+  if(game->points >= (game->num_players-1) * 2000){
+    game->game_status = 3; /* Survivor won */
+    game->game_over = 1;
+  }
   /* assume the first player is killer */
   hns_player_t* killer = game->players;
   hns_player_t* player_walker = killer->next;
   hns_player_t* player_walker2 = killer->next;
 
   while(player_walker){
-    if(hns_distance(killer, player_walker)<0.2){
+    if(hns_distance(killer, player_walker)<0.25){
       /* Killer Got a survivor */
       if(player_walker->status%2==0){
         player_walker->status++;
+        game->num_freezed_players++;
         printf("Survivor %i Freezed, status: %i.\n", player_walker->role,player_walker->status);
+        if(game->num_freezed_players>=game->num_players-1){
+          game->game_status = 4;
+          game->game_over = 1;
+        }
       }
     }
 
@@ -506,6 +530,7 @@ void hns_judge(hns_game_t* game){
           if(hns_distance(player_walker, player_walker2)<0.2){
             /* Survivor got freed by another player */
             player_walker->status++;
+            game->num_freezed_players--;
             printf("Survivor Freed.\n");
           }
         }
