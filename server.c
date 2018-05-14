@@ -96,8 +96,17 @@ int main(void)
   // keep track of the biggest file descriptor
   fdmax = listener; // so far, it's this one
 
+  /* get the player amount */
+  int nump = 2;
+  printf("Please enter the amount of players in this game: (2-5) then Ctrl+D \n");
+  scanf("%d", &nump);
+  if(nump>5) nump=5;
+  if(nump<2) nump=2;
+  printf("Waiting for %d players to connect...\n", nump);
+
+
   // main loop
-  while(game->num_players < 3)
+  while(game->num_players < nump)
   {
     read_fds = master; // copy it
     if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1)
@@ -198,6 +207,9 @@ void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ ){
   printf("id: %u\n", init->id);
 
   uint32_t ack_code = 0;  // 0: Confirmed Killer, 1~4 for survivor
+
+  game->start_time = time(0);
+  printf("%li\n", game->start_time);
 
   if(init->role == 0){
     /* I want to be a killer */
@@ -301,6 +313,7 @@ void game_init(hns_game_t* game)
   game->obj1.y = 0;
   game->obj2.y = 0;
   game->game_over = 0;
+  game->start_time = 9999999999;
 }
 
 //==============================================================================
