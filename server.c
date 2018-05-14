@@ -1,3 +1,43 @@
+/*************************************************************
+* Chase and Run - Multiplayer game based on TCP & UDP
+*
+* Server Side - server.c
+* Compile options: gcc -o server server.c -lm
+*
+* Client Side - client.cs
+* Build using Unity Game Builder
+* Support for Windows / Mac OS / Linux
+*
+* README contains information about the technical design
+*
+* --------------------------Game Rules-------------------------
+* First player connected will be the lion, the following players
+* will be chicken, cat, pig and dog respectively.'
+*
+* The Lion will need to chase down everyone while protecting the
+* 2 objective circles.
+*
+* Other players will need to stay in objective circles as long
+* as possible to get points while avoiding the lion.
+*
+* Objective: If the total points reached 3000*n points where n
+* is the number of players other than lion, then all players
+* except the lion will win the game.
+
+* If the lion freezes all players on the map, then the lion will
+* win the game. Each player can be freezed to a maximum of 3
+* times. If they are freezed for the first 2 times, they can be
+* freed again by another player.
+* -------------------------------------------------------------
+*
+* ---------------------Running the server----------------------
+* Execute the game binary file, then enter how many players are
+* going to join this game. (2-5 players allowed, but 4-5 players
+* is going to be more balanced and fun.
+**************************************************************/
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
