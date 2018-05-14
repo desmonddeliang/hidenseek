@@ -34,4 +34,20 @@ packet:
   (0) type
   (1) id  (64 bits)
   (2) cor (96 bits)
-  (3) act (8 bits)
+  (3) stat (8 bits)
+
+
+
+
+
+
+
+
+
+status codes for players:
+0: default
+1: first freeze
+2: first free
+3: second freeze
+4: second free
+5: dead
