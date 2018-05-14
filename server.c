@@ -34,10 +34,11 @@
 * Execute the game binary file, then enter how many players are
 * going to join this game. (2-5 players allowed, but 4-5 players
 * is going to be more balanced and fun.
+* -------------------------------------------------------------
 **************************************************************/
 
 
-
+/* Librarys */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -55,9 +56,11 @@
 #include <math.h>
 #include "structs.h"
 
+/* Ports */
 #define TCP_PORT "54321"
 #define UDP_PORT "54329"
 
+/* Prototypes */
 void game_init(hns_game_t*);
 void* get_in_addr(struct sockaddr*);
 void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ );
@@ -68,7 +71,11 @@ void hns_judge(hns_game_t* game);
 double hns_distance(hns_player_t* p1, hns_player_t* p2);
 
 
-
+/*************************************************************
+* Main function
+* Starts TCP sockets to wait for n players to join the game
+* Once everybody joined, call gaming() to start the game
+*************************************************************/
 int main(void)
 {
   hns_game_t* game = malloc(sizeof(hns_game_t));
@@ -136,7 +143,8 @@ int main(void)
   // keep track of the biggest file descriptor
   fdmax = listener; // so far, it's this one
 
-  /* get the player amount */
+
+  /* get the player amount from std input*/
   int nump = 2;
   printf("Please enter the amount of players in this game: (2-5) \n");
   scanf("%d", &nump);
@@ -145,7 +153,7 @@ int main(void)
   printf("Waiting for %d players to connect...\n", nump);
 
 
-  // main loop
+  /* main loop waiting for connections */
   while(game->num_players < nump)
   {
     read_fds = master; // copy it
@@ -201,7 +209,7 @@ int main(void)
           }
           else
           {
-            /* initial information from client */
+            /* handle initial information from client */
             hns_handle_init(game, buf, i);
           }
         } // END handle data from client
@@ -210,8 +218,9 @@ int main(void)
   } // END main while loop
 
 
-  printf("GAMING TIME!\n");
-  /* Enters Gaming stage by sending a game start signal */
+  printf("Everybody joined, enters gaming stage now!\n");
+
+  /* Enters Gaming stage by broadcasting a game start signal */
   game_start_t* gamestart = malloc(sizeof(game_start_t));
   gamestart->type = 2;
   gamestart->num_players = game->num_players;
@@ -228,7 +237,7 @@ int main(void)
   /* start broadcasting every player's information to everybody */
   gaming(game);
 
-  /* close all TCP sockets */
+  /* Game over, close all TCP sockets */
   for(i = 0; i <= fdmax; i++){
     close(i);
   }
@@ -237,7 +246,10 @@ int main(void)
   return 0;
 }
 
-
+/*************************************************************
+* hns_handle_init function
+* Handles packet from client when they just joined the game
+*************************************************************/
 void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ ){
 
   hns_init_t* init = (hns_init_t*)buf;
@@ -283,7 +295,7 @@ void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ ){
   init_ack->ack_code = ack_code;
   if(send(i, init_ack, sizeof(hns_init_ack_t), 0) == -1)
     perror("Init_ack");
-  printf("Sending init Ack with code %i\n", init_ack->ack_code);
+
   free(init_ack);
 
 
@@ -316,7 +328,7 @@ void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ ){
       player->y = -3;
     }
 
-    printf("Player Connected with role %i\n",init->role );
+    printf("Player Connected with role %i\n", ack_code);
 
     game->num_players += 1;
     player_walker = game->players;
@@ -335,9 +347,10 @@ void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ ){
 }
 
 
-//==============================================================================
-// initialization
-//==============================================================================
+/*************************************************************
+* game_init function
+* Initializes the *game* object
+*************************************************************/
 void game_init(hns_game_t* game)
 {
   game->players = NULL;
@@ -353,12 +366,12 @@ void game_init(hns_game_t* game)
   game->obj1.y = 0;
   game->obj2.y = 0;
   game->game_over = 0;
-  game->start_time = 9999999999;
 }
 
-//==============================================================================
-// get_in_addr
-//==============================================================================
+/*************************************************************
+* get_in_addr function
+* IPv4/IPv6 distinguishing
+*************************************************************/
 void *get_in_addr(struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET)
@@ -370,9 +383,12 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 
-//==============================================================================
-// gaming
-//==============================================================================
+/*************************************************************
+* gaming function
+* Pass in a *game* object, and we'll start the game!
+* First we start a UDP listening socket, and wait for Everybody
+* to start updating their information
+*************************************************************/
 void gaming(hns_game_t* game)
 {
   int sockfd;
@@ -428,6 +444,7 @@ void gaming(hns_game_t* game)
   memset(addr_list, 0 , sizeof(struct sockaddr_in)*MAX_PLAYER_NUM);
 
   gettimeofday(&last_sent, NULL);
+
   while(1)
   {
 
@@ -469,6 +486,7 @@ void gaming(hns_game_t* game)
           {
             player_walker->x = update->x;
             player_walker->y = update->y;
+            /* see if any player is getting points from the objective circles */
             hns_obj(game,player_walker);
           } // end same id
           player_walker = player_walker->next;
@@ -476,6 +494,7 @@ void gaming(hns_game_t* game)
       } // end if update
     }
 
+    /* see if any player is caught by the LION */
     hns_judge(game);
 
     gettimeofday(&current_time, NULL);
@@ -493,11 +512,10 @@ void gaming(hns_game_t* game)
       int send_buf_len = sizeof(hns_broadcast_hdr_t) + sizeof(hns_broadcast_player_t) * game->num_players;
       uint8_t* send_buf = malloc(send_buf_len);
       hns_broadcast_player_t* player_temp = malloc(sizeof(hns_broadcast_player_t));
+      hns_player_t* player_walker = game->players;
       memset(player_temp, 0 ,sizeof(hns_broadcast_player_t));
-
       memcpy(send_buf, bro, sizeof(hns_broadcast_hdr_t));
 
-      hns_player_t* player_walker = game->players;
 
       int player_index = 0;
 

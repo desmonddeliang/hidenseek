@@ -22,7 +22,6 @@ struct hns_game {
   hns_player_t obj1;
   hns_player_t obj2;
   uint32_t game_over;
-  time_t start_time;
   struct hns_player *players;
 }__attribute__ ((packed)) ;
 typedef struct hns_game hns_game_t;
