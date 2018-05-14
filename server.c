@@ -260,9 +260,6 @@ void hns_handle_init(hns_game_t* game, char* buf, int i/* socket descriptor*/ ){
 
   uint32_t ack_code = 0;  // 0: Confirmed Killer, 1~4 for survivor
 
-  game->start_time = time(0);
-  printf("%li\n", game->start_time);
-
   if(init->role == 0){
     /* I want to be a killer */
     if(game->killer == 0){
