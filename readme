@@ -1,0 +1,87 @@
+README
+
+Chase & Run (hns)
+Desmond Liang, Peize Song
+
+Overview
+For this program, we designed multiplayer game called Chase & Run. There are
+2-5 players in each game. In each game, there is 1 player playing as killer
+and the other players play as survivors. The goal of survivors is to try there
+best to take the objective. As survivors get enough points from taking the obj-
+ective, survivors will win the game. As for killer, the goal is to catch all
+the survivors. As the killer catches a survivor, the survivor will be frozen.
+If all survivors are frozen, killer will win the game. Notice that other survi-
+vors can free you by touching you if you are frozen.
+
+
+Overall Structure
+The server is a c language program that we will run on Linux (Ubuntu) operating
+system. For the client side, we wrote it in C# with Unity engine. About the con-
+-nection between the client and server, we used both udp and tcp. The tcp is for
+the communication at the beginnig of the game. And the udp part is for the game
+play.
+
+
+Stages
+0. game init:  Server reads the number of players for this game, then creates
+               tcp connection for receiving each player's initial information.
+               Then, server will send back the player which he will be. (The
+               first player connected will be the killer and others will be sur
+               vivor.)
+
+1. game start: The server gets the right amount of players and decided to start
+               the game. Server broadcasts all players' information to each pla
+               yer and tell them the game starts. TCP connection stops.
+
+2. game stage: Server and clients create UDP sockets for connection. Each Clien
+               ts sends server the newest coordinate of the player. The rate is
+               100 packets per second. Server also broadcasts all players infor
+               mation to each client. Then, clients can update the coordinates
+               of other players. In this process, other information like player
+               status (for frozen and death) and the game's state (for end the
+               game) are also passed.
+
+3. game end:   Server finds one side (killer/survivor) wins the game. Then, the
+               server can tell all clients to finish the game. And the server w
+               will close the UDP socket.
+
+Important Structures
+hns_player:
+	0. id: unique identification for each player
+	1. role: role of the player (killer/survivor)
+	2. x, y: coordinate
+	3. status: status of players (frozen/free)
+
+hns_game:
+	0. timestamp: timestamp of the game
+	1. num_players: the number of players
+	2. killer: number of killer
+	3. susrvivor: number of survivors
+	4. points: the amount of points survivors have
+	5. game_status:
+		0. pre-game
+		1. in-game
+		2. single survivor dead
+		3. survivor won
+		4. killer won
+	6. num_frozen_player: the number of players frozen
+	7. game_over: whether the game is over
+	8. obj1, obj2: the two objectives (hns_player type)
+	9. start_time: the time started
+	10. players: the list of all players
+
+
+Remain bugs:
+0. lag: different clients are not totally in sync. Sometimes, in the survivors'
+	views, survivor dies before the killer actually catch him. (little lag)
+1. Unity programming problem: One of the clients may find there is one player not
+	moving. But other clients still work and the server handles data correctly.
+	So, we think this is a problem with unity coding.
+2. Closing connection: we wanted to use TCP to send the game ending packets. But
+	the clients cannot listen from TCP socket after UDP socket is created.
+
+
+Result:
+The game works successfully. Actually the lag doesn't really effect the game
+play. The biggest problem is the game is not totally balanced. We may add more
+content in the game to make it better and more balance.
